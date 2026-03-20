@@ -1,30 +1,17 @@
 app:
   title: Scaffolded Backstage App
-  baseUrl: http://localhost:3000
-
-organization:
-  name: My Company
+  baseUrl: ${APP_BASE_URL}  # frontend URL from env
 
 backend:
-  # Used for enabling authentication, secret is shared by all backend plugins
-  # See https://backstage.io/docs/auth/service-to-service-auth for
-  # information on the format
-  # auth:
-  #   keys:
-  #     - secret: ${BACKEND_SECRET}
-  baseUrl: http://localhost:7007
+  baseUrl: ${BACKEND_BASE_URL}  # backend URL from env
   listen:
     port: 7007
-    # Uncomment the following host directive to bind to specific interfaces
-    # host: 127.0.0.1
-  csp:
-    connect-src: ["'self'", 'http:', 'https:']
-    # Content-Security-Policy directives follow the Helmet format: https://helmetjs.github.io/#reference
-    # Default Helmet Content-Security-Policy values can be removed by setting the key to false
+    host: 0.0.0.0   # bind to all interfaces for external access
   cors:
-    origin: http://localhost:3000
+    origin: ${APP_BASE_URL}  # allow frontend to call backend
     methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
     credentials: true
+
   # This is for local development only, it is not recommended to use this in production
   # The production database configuration is stored in app-config.production.yaml
   database:

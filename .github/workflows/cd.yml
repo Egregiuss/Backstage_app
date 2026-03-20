@@ -1,0 +1,18 @@
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: yarn install
+      - name: Build and start
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          BACKEND_BASE_URL: ${{ secrets.BACKEND_BASE_URL }}
+        run: |
+          yarn build
+          pm2 restart backstage || pm2 start packages/backend --name backstage
