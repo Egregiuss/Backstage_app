@@ -2,28 +2,21 @@ name: CD
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Write SSH key to file
-        shell: bash
-        env:
-          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s' "$VM_SSH_KEY" > ~/.ssh/vm_deploy_key
-          chmod 600 ~/.ssh/vm_deploy_key
-
       - name: Deploy to GCP VM via SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
-          key_path: ~/.ssh/vm_deploy_key
+          key: ${{ secrets.VM_SSH_KEY }}
+          envs: APP_BASE_URL,BACKEND_BASE_URL
           script: |
             cd ~/Backstage_app
             git pull origin main
@@ -34,3 +27,6 @@ jobs:
             else
               pm2 start "yarn start" --name backstage
             fi
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          BACKEND_BASE_URL: ${{ secrets.BACKEND_BASE_URL }}
