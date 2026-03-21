@@ -11,20 +11,7 @@ jobs:
     steps:
       # Checkout repo
       - uses: actions/checkout@v4
-
-      # Install Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      # Enable Corepack & install dependencies
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: yarn install --immutable
-
+      
       # Write SSH key from secret to file
       - name: Write SSH key
         shell: bash
