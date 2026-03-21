@@ -2,7 +2,8 @@ name: CD
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -29,3 +30,4 @@ jobs:
             cd ~/Backstage_app
             git pull origin main
             pm2 restart backstage --update-env || pm2 start "yarn start" --name backstage
+            pm2 save
