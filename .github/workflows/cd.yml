@@ -15,16 +15,9 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          script_stop: true
           script: |
             cd ~/Backstage_app
             git pull origin main
             corepack enable
             yarn install --immutable
-            export APP_BASE_URL='${{ secrets.APP_BASE_URL }}'
-            export BACKEND_BASE_URL='${{ secrets.BACKEND_BASE_URL }}'
-            if pm2 describe backstage >/dev/null 2>&1; then
-              pm2 restart backstage --update-env
-            else
-              pm2 start "yarn start" --name backstage
-            fi
+            pm2 restart backstage || pm2 start "yarn start" --name backstage
