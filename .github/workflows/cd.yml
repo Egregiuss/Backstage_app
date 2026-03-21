@@ -2,36 +2,47 @@ name: CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [main, master]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Write SSH key to file
+      # Checkout repo
+      - uses: actions/checkout@v4
+
+      # Install Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # Enable Corepack & install dependencies
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Write SSH key from secret to file
+      - name: Write SSH key
         shell: bash
         env:
           VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
         run: |
-          mkdir -p ~/.ssh
-          printf '%s' "$VM_SSH_KEY" > ~/.ssh/vm_deploy_key
-          chmod 600 ~/.ssh/vm_deploy_key
+          mkdir -p $HOME/.ssh
+          printf '%s\n' "$VM_SSH_KEY" > $HOME/.ssh/vm_deploy_key
+          chmod 600 $HOME/.ssh/vm_deploy_key
 
-      - name: Deploy to GCP VM via SSH
+      # Deploy via SSH
+      - name: Deploy to GCP VM
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
-          key_path: ~/.ssh/vm_deploy_key
+          key_path: $HOME/.ssh/vm_deploy_key
           script: |
             cd ~/Backstage_app
-            git pull origin main
-            corepack enable
-            yarn install --immutable
-            if pm2 describe backstage >/dev/null 2>&1; then
-              pm2 restart backstage --update-env
-            else
-              pm2 start "yarn start" --name backstage
-            fi
+            yarn build
+            pm2 restart backstage || pm2 start packages/backend --name backstage
