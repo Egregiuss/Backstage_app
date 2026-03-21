@@ -36,8 +36,4 @@ jobs:
       - name: Build
         run: yarn build:all
 
-      - name: Trigger CD workflow
-        uses: peter-evans/workflow-dispatch@v2
-        with:
-          workflow: CD.yml
-          ref: main
+      
