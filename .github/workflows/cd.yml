@@ -2,34 +2,30 @@ name: CD
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
-      - uses: actions/checkout@v4
-      
-      # Write SSH key from secret to file
-      - name: Write SSH key
+      - name: Write SSH key to file
         shell: bash
         env:
           VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
         run: |
-          mkdir -p $HOME/.ssh
-          printf '%s\n' "$VM_SSH_KEY" > $HOME/.ssh/vm_deploy_key
-          chmod 600 $HOME/.ssh/vm_deploy_key
+          mkdir -p "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$VM_SSH_KEY" > "$RUNNER_TEMP/ssh/vm_deploy_key"
+          chmod 600 "$RUNNER_TEMP/ssh/vm_deploy_key"
 
-      # Deploy via SSH
-      - name: Deploy to GCP VM
+      - name: Deploy to GCP VM via SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
-          key_path: $HOME/.ssh/vm_deploy_key
+          key_path: ${{ runner.temp }}/ssh/vm_deploy_key
           script: |
+            set -e
             cd ~/Backstage_app
-            yarn build
-            pm2 restart backstage || pm2 start packages/backend --name backstage
+            git pull origin main
+            pm2 restart backstage --update-env || pm2 start "yarn start" --name backstage
