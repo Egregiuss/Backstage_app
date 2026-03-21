@@ -1,16 +1,17 @@
 name: CD
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["CI"]    # Name of your CI workflow
+    types:
+      - completed
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Write SSH key to a temporary file
       - name: Write SSH key to file
         shell: bash
         env:
@@ -20,7 +21,6 @@ jobs:
           printf '%s\n' "$VM_SSH_KEY" > "$RUNNER_TEMP/ssh/vm_deploy_key"
           chmod 600 "$RUNNER_TEMP/ssh/vm_deploy_key"
 
-      # 2️⃣ Deploy to GCP VM via SSH
       - name: Deploy to GCP VM via SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
@@ -30,22 +30,8 @@ jobs:
           script: |
             set -e
             cd ~/Backstage_app
-
-            # Pull latest code
-            git fetch --all
-            git reset --hard origin/main
-
-            # Set environment variables for app and backend
+            git pull origin main
             export APP_BASE_URL=${{ secrets.APP_BASE_URL }}
             export BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }}
-
-            # Install dependencies if needed
-            yarn install --immutable
-
-            # Build and start/restart PM2
-            yarn build
             pm2 restart backstage --update-env || pm2 start "yarn start" --name backstage
             pm2 save
-
-            # Optional: show PM2 status
-            pm2 list
