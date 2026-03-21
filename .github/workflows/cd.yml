@@ -9,15 +9,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Write SSH key to file
+        shell: bash
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "$VM_SSH_KEY" > ~/.ssh/vm_deploy_key
+          chmod 600 ~/.ssh/vm_deploy_key
+
       - name: Deploy to GCP VM via SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
+          key_path: ~/.ssh/vm_deploy_key
           script: |
             cd ~/Backstage_app
             git pull origin main
             corepack enable
             yarn install --immutable
-            pm2 restart backstage || pm2 start "yarn start" --name backstage
+            if pm2 describe backstage >/dev/null 2>&1; then
+              pm2 restart backstage --update-env
+            else
+              pm2 start "yarn start" --name backstage
+            fi
