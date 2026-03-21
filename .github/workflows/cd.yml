@@ -1,34 +1,35 @@
 name: CD
 
 on:
+  workflow_dispatch:    # allows manual or CI-triggered dispatch
   push:
-    branches: [main, master]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository
-      - uses: actions/checkout@v4
-
-      # Prepare SSH key from secrets
-      - name: Setup SSH Key
-        run: |
-          mkdir -p "$HOME/.ssh"
-          printf '%s\n' "$VM_SSH_KEY" > "$HOME/.ssh/vm_deploy_key"
-          chmod 600 "$HOME/.ssh/vm_deploy_key"
+      - name: Write SSH key to file
+        shell: bash
         env:
           VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$VM_SSH_KEY" > "$RUNNER_TEMP/ssh/vm_deploy_key"
+          chmod 600 "$RUNNER_TEMP/ssh/vm_deploy_key"
 
-      # Deploy to the VM
-      - name: Deploy to GCP VM
+      - name: Deploy to GCP VM via SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
-          key_path: $HOME/.ssh/vm_deploy_key
-          port: 22
+          key_path: ${{ runner.temp }}/ssh/vm_deploy_key
           script: |
+            set -e
             cd ~/Backstage_app
-            APP_BASE_URL=${{ secrets.APP_BASE_URL }} BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }} pm2 restart backstage || pm2 start packages/backend --name backstage
+            git pull origin main
+            APP_BASE_URL=${{ secrets.APP_BASE_URL }} BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }} pm2 restart backstage --update-env || \
+            APP_BASE_URL=${{ secrets.APP_BASE_URL }} BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }} pm2 start "yarn start" --name backstage
+            pm2 save
