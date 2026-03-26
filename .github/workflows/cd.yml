@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # only run if CI succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -21,7 +21,7 @@ jobs:
           printf '%s\n' "$VM_SSH_KEY" > "$RUNNER_TEMP/ssh/vm_deploy_key"
           chmod 600 "$RUNNER_TEMP/ssh/vm_deploy_key"
 
-      - name: Deploy Backstage to GCP VM
+      - name: Deploy to GCP VM via SSH
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VM_HOST }}
@@ -30,16 +30,18 @@ jobs:
           script: |
             set -e
             cd ~/Backstage_app
-
-            # Pull latest code
             git fetch origin main
             git reset --hard origin/main
 
-            # Delete previous PM2 process if exists
             pm2 delete backstage || true
+            pm2 delete backstage-frontend || true
+            pm2 delete backstage-backend || true
+            pkill -f "yarn dev" || true
+            pkill -f "yarn start" || true
 
-            # Start Backstage with proper environment variables
-            APP_BASE_URL=${{ secrets.APP_BASE_URL }} BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }} pm2 start "yarn start" --name backstage
+            HOST=0.0.0.0 \
+            APP_BASE_URL='${{ secrets.APP_BASE_URL }}' \
+            BACKEND_BASE_URL='${{ secrets.BACKEND_BASE_URL }}' \
+            pm2 start "yarn dev" --name backstage --update-env
 
-            # Save PM2 process list
             pm2 save
