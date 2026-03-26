@@ -21,27 +21,45 @@ jobs:
           printf '%s\n' "$VM_SSH_KEY" > "$RUNNER_TEMP/ssh/vm_deploy_key"
           chmod 600 "$RUNNER_TEMP/ssh/vm_deploy_key"
 
-      - name: Deploy to GCP VM via SSH
+      - name: Deploy to VM
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key_path: ${{ runner.temp }}/ssh/vm_deploy_key
+          port: 22
+          script_stop: true
           script: |
             set -e
+
+            echo "Starting deployment..."
+
             cd ~/Backstage_app
+
+            echo "Pulling latest code..."
             git fetch origin main
             git reset --hard origin/main
+
+            echo "Installing dependencies..."
+            yarn install --immutable
+
+            echo "Cleaning old processes..."
 
             pm2 delete backstage || true
             pm2 delete backstage-frontend || true
             pm2 delete backstage-backend || true
+
             pkill -f "yarn dev" || true
             pkill -f "yarn start" || true
+
+            echo "Starting Backstage..."
 
             HOST=0.0.0.0 \
             APP_BASE_URL='${{ secrets.APP_BASE_URL }}' \
             BACKEND_BASE_URL='${{ secrets.BACKEND_BASE_URL }}' \
             pm2 start "yarn dev" --name backstage --update-env
 
+            echo "Saving PM2 configuration..."
             pm2 save
+
+            echo "Deployment complete!"
