@@ -1,4 +1,3 @@
-```yaml
 name: CD
 
 on:
@@ -29,7 +28,10 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key_path: ${{ runner.temp }}/ssh/vm_deploy_key
           port: 22
+          script_stop: false
           script: |
+            set -e
+
             echo "Starting deployment..."
 
             cd ~/Backstage_app
@@ -41,8 +43,20 @@ jobs:
             echo "Installing dependencies..."
             yarn install --immutable
 
-            echo "Cleaning old processes..."
-            pm2 delete all || true
+            echo "Stopping existing PM2 processes (if any)..."
+
+            if pm2 list | grep -q backstage; then
+              pm2 delete backstage
+            fi
+
+            if pm2 list | grep -q backstage-frontend; then
+              pm2 delete backstage-frontend
+            fi
+
+            if pm2 list | grep -q backstage-backend; then
+              pm2 delete backstage-backend
+            fi
+
             pkill -f "yarn dev" || true
             pkill -f "yarn start" || true
 
@@ -53,8 +67,7 @@ jobs:
             BACKEND_BASE_URL='${{ secrets.BACKEND_BASE_URL }}' \
             pm2 start "yarn dev" --name backstage --update-env
 
-            echo "Saving PM2 configuration..."
             pm2 save
 
             echo "Deployment complete!"
-```
+
