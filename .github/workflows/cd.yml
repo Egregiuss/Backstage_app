@@ -29,24 +29,18 @@ jobs:
           key_path: ${{ runner.temp }}/ssh/vm_key
           port: 22
           script: |
-            echo "Starting deployment..."
-
             cd ~/Backstage_app
 
-            echo "Updating repository..."
             git fetch origin main
             git reset --hard origin/main
 
-            echo "Installing dependencies..."
             yarn install --immutable
 
-            echo "Restarting Backstage..."
+            pm2 delete backstage || true
+
             HOST=0.0.0.0 \
             APP_BASE_URL='${{ secrets.APP_BASE_URL }}' \
             BACKEND_BASE_URL='${{ secrets.BACKEND_BASE_URL }}' \
-            pm2 restart backstage --update-env || \
             pm2 start "yarn dev" --name backstage --time
 
             pm2 save
-
-            echo "Deployment complete!"
