@@ -35,7 +35,7 @@ jobs:
 
             cd ~/Backstage_app
 
-            echo "Updating repo..."
+            echo "Updating repository..."
             git fetch origin main
             git reset --hard origin/main
 
@@ -49,12 +49,13 @@ jobs:
 
             echo "Starting Backstage..."
 
-            HOST=0.0.0.0 \
-            APP_BASE_URL='${{ secrets.APP_BASE_URL }}' \
-            BACKEND_BASE_URL='${{ secrets.BACKEND_BASE_URL }}' \
-            pm2 start "yarn dev" --name backstage --update-env
+            export HOST=0.0.0.0
+            export APP_BASE_URL=${{ secrets.APP_BASE_URL }}
+            export BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }}
+
+            pm2 start yarn --name backstage --time -- dev
 
             pm2 save
 
-            echo "Deployment complete!"
+            echo "Deployment completed!"
 
