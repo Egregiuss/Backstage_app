@@ -31,28 +31,24 @@ jobs:
           script: |
             cd ~/Backstage_app
 
-            # 1️⃣ Pull latest code
+            # Ensure Git remote is SSH
+            git remote set-url origin git@github.com:Egregiuss/Backstage_app.git
+
+            # Fetch latest code via SSH
             git fetch origin main
             git reset --hard origin/main
 
-            # 2️⃣ Install dependencies
+            # Install dependencies immutably
             yarn install --immutable
 
-            # 3️⃣ Build the frontend
-            yarn workspace app build
-
-            # 4️⃣ Stop any existing PM2 process
+            # Stop any existing PM2 process safely
             pm2 delete backstage || true
 
-            # 5️⃣ Start the backend (serves frontend as well)
-            pm2 start --name backstage -- bash -lc "\
-              HOST=0.0.0.0 \
-              APP_BASE_URL=${APP_BASE_URL} \
-              BACKEND_BASE_URL=${BACKEND_BASE_URL} \
-              yarn workspace backend start"
+            # Start backend via PM2, binding to all interfaces
+            pm2 start --name backstage -- bash -lc 'HOST=0.0.0.0 APP_BASE_URL="${APP_BASE_URL}" BACKEND_BASE_URL="${BACKEND_BASE_URL}" yarn start'
 
-            # 6️⃣ Save PM2 process list
-            pm2 save --force
+            # Persist PM2 process list
+            pm2 save
         env:
           APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
           BACKEND_BASE_URL: ${{ secrets.BACKEND_BASE_URL }}
