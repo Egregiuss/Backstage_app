@@ -29,18 +29,27 @@ jobs:
           key_path: ${{ runner.temp }}/ssh/vm_key
           port: 22
           script: |
+            set -e  # fail fast if anything goes wrong
+
             cd ~/Backstage_app
 
+            # Pull latest changes
             git fetch origin main
             git reset --hard origin/main
 
+            # Install dependencies
             yarn install --immutable
 
+            # Stop previous process (ignore errors if not found)
             pm2 delete backstage || true
 
-            pm2 start --name backstage -- bash -lc 'HOST=0.0.0.0 APP_BASE_URL="${APP_BASE_URL}" BACKEND_BASE_URL="${BACKEND_BASE_URL}" yarn start'
+            # Start Backstage in production mode
+            APP_BASE_URL="${APP_BASE_URL}" \
+            BACKEND_BASE_URL="${BACKEND_BASE_URL}" \
+            pm2 start "yarn start" --name backstage --time
 
-            pm2 save
+            # Persist PM2 process list
+            pm2 save --force
         env:
           APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
           BACKEND_BASE_URL: ${{ secrets.BACKEND_BASE_URL }}
