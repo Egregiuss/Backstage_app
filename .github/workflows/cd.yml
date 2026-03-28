@@ -38,9 +38,9 @@ jobs:
 
             pm2 delete backstage || true
 
-            HOST=0.0.0.0 \
-            APP_BASE_URL='${{ secrets.APP_BASE_URL }}' \
-            BACKEND_BASE_URL='${{ secrets.BACKEND_BASE_URL }}' \
-            pm2 start "yarn dev" --name backstage --time
+            export HOST=0.0.0.0
+            export APP_CONFIG_app_baseUrl='${{ secrets.APP_BASE_URL }}'
+            export APP_CONFIG_backend_baseUrl='${{ secrets.BACKEND_BASE_URL }}'
 
+            pm2 start "yarn start" --name backstage --time
             pm2 save
