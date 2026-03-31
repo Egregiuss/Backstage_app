@@ -29,26 +29,27 @@ jobs:
           key_path: ${{ runner.temp }}/ssh/vm_key
           port: 22
           script: |
+            set -e  # fail fast if anything goes wrong
+
             cd ~/Backstage_app
 
-            # Ensure Git remote is SSH
-            git remote set-url origin git@github.com:Egregiuss/Backstage_app.git
-
-            # Fetch latest code via SSH
+            # Pull latest changes
             git fetch origin main
             git reset --hard origin/main
 
-            # Install dependencies immutably
+            # Install dependencies
             yarn install --immutable
 
-            # Stop any existing PM2 process safely
+            # Stop previous process (ignore errors if not found)
             pm2 delete backstage || true
 
-            # Start backend via PM2, binding to all interfaces
-            pm2 start --name backstage -- bash -lc 'HOST=0.0.0.0 APP_BASE_URL="${APP_BASE_URL}" BACKEND_BASE_URL="${BACKEND_BASE_URL}" yarn start'
+            # Start Backstage in production mode
+            APP_BASE_URL="${APP_BASE_URL}" \
+            BACKEND_BASE_URL="${BACKEND_BASE_URL}" \
+            pm2 start "yarn start" --name backstage --time
 
             # Persist PM2 process list
-            pm2 save
+            pm2 save --force
         env:
           APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
           BACKEND_BASE_URL: ${{ secrets.BACKEND_BASE_URL }}
