@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backstage
-          image: gcr.io/PROJECT_ID/backstage:latest
+          image: us-central1-docker.pkg.dev/PROJECT_ID/backstage/backstage:latest
           ports:
             - containerPort: 7007
           env:
