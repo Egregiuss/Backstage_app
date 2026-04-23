@@ -9,7 +9,7 @@ WORKDIR /app
 COPY . .
 
 RUN corepack enable && yarn install --immutable
-RUN yarn build:all
+RUN APP_BASE_URL=http://localhost BACKEND_BASE_URL=http://localhost yarn build:all
 
 FROM node:22-bookworm-slim AS runner
 
