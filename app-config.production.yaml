@@ -19,8 +19,10 @@ backend:
         upgrade-insecure-requests: false
 
 auth:
+  environment: production
   providers:
-    guest: {}
+    guest:
+      dangerouslyAllowOutsideDevelopment: true
 
 catalog:
   # Overrides the default list locations from app-config.yaml as these contain example data.
