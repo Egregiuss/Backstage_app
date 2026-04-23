@@ -3,7 +3,7 @@ app:
   baseUrl: ${APP_BASE_URL}  # frontend URL from env
 
 backend:
-  baseUrl: ${BACKEND_BASE_URL}  # backend URL from env
+  baseUrl: ${BACKEND_BASE_URL} # backend URL from env
   listen:
     port: 7007
     host: 0.0.0.0   # bind to all interfaces for external access
