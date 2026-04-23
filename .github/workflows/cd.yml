@@ -49,7 +49,7 @@ jobs:
         run: yarn install --immutable
 
       - name: Build backend
-        run: yarn build:backend
+        run: yarn build:all
 
       - name: Build Docker image
         run: docker build -f packages/backend/Dockerfile -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .

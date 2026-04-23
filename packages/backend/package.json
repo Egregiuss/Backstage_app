@@ -38,7 +38,7 @@
     "@backstage/plugin-scaffolder-backend-module-notifications": "^0.1.19",
     "@backstage/plugin-search-backend": "^2.0.12",
     "@backstage/plugin-search-backend-module-catalog": "^0.3.12",
-    "@backstage/plugin-search-backend-module-pg": "^0.5.52",
+    "@backstage/plugin-search-backend-module-lunr": "^0.1.5",
     "@backstage/plugin-search-backend-module-techdocs": "^0.4.11",
     "@backstage/plugin-search-backend-node": "^1.4.1",
     "@backstage/plugin-signals-backend": "^0.3.12",
