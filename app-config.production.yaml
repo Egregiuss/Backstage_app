@@ -9,6 +9,15 @@ backend:
     client: better-sqlite3
     connection: ':memory:'
 
+  csp:
+    upgrade-insecure-requests: false
+
+  helmet:
+    strictTransportSecurity: false
+    contentSecurityPolicy:
+      directives:
+        upgrade-insecure-requests: false
+
 auth:
   providers:
     guest: {}
