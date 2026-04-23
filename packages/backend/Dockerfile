@@ -1,43 +1,37 @@
-FROM node:22-bookworm-slim AS build
+FROM node:22-bookworm-slim
 
 ENV PYTHON=/usr/bin/python3
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 g++ build-essential libsqlite3-dev && \
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends python3 g++ build-essential && \
     rm -rf /var/lib/apt/lists/*
 
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends libsqlite3-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+USER node
 WORKDIR /app
-COPY . .
 
-RUN corepack enable && yarn install --immutable
-RUN APP_BASE_URL=http://localhost BACKEND_BASE_URL=http://localhost yarn build:all
+COPY --chown=node:node .yarn ./.yarn
+COPY --chown=node:node .yarnrc.yml ./
+COPY --chown=node:node backstage.json ./
 
-FROM node:22-bookworm-slim AS runner
-
-ENV PYTHON=/usr/bin/python3
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--no-node-snapshot"
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 g++ build-essential libsqlite3-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-USER node
-
-COPY --chown=node:node --from=build /app/.yarn ./.yarn
-COPY --chown=node:node --from=build /app/.yarnrc.yml ./
-COPY --chown=node:node --from=build /app/backstage.json ./
-COPY --chown=node:node --from=build /app/yarn.lock ./
-COPY --chown=node:node --from=build /app/package.json ./
-COPY --chown=node:node --from=build /app/packages/backend/dist/skeleton.tar.gz ./
+COPY --chown=node:node yarn.lock package.json packages/backend/dist/skeleton.tar.gz ./
 RUN tar xzf skeleton.tar.gz && rm skeleton.tar.gz
 
-RUN corepack enable && yarn workspaces focus --all --production
+RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid=1000 \
+    yarn workspaces focus --all --production && rm -rf "$(yarn cache clean)"
 
-COPY --chown=node:node --from=build /app/packages/backend/dist/bundle.tar.gz ./
+COPY --chown=node:node examples ./examples
+COPY --chown=node:node packages/backend/dist/bundle.tar.gz app-config*.yaml ./
 RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
-
-COPY --chown=node:node --from=build /app/examples ./examples
-COPY --chown=node:node --from=build /app/app-config*.yaml ./
 
 CMD ["node", "packages/backend", "--config", "app-config.yaml", "--config", "app-config.production.yaml"]
