@@ -6,50 +6,80 @@ on:
     types:
       - completed
 
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GKE_CLUSTER: ${{ secrets.GKE_CLUSTER }}
+  GKE_ZONE: ${{ secrets.GKE_ZONE }}
+  IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/backstage
+
 jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Write SSH key
-        shell: bash
-        env:
-          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/ssh"
-          printf '%s\n' "$VM_SSH_KEY" > "$RUNNER_TEMP/ssh/vm_key"
-          chmod 600 "$RUNNER_TEMP/ssh/vm_key"
+      - uses: actions/checkout@v4
 
-      - name: Deploy to VM
-        uses: appleboy/ssh-action@v1.2.5
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key_path: ${{ runner.temp }}/ssh/vm_key
-          port: 22
-          script: |
-            set -e  # fail fast if anything goes wrong
+          workload_identity_provider: projects/822209423456/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: backstage-deployer@project-50816be8-7e90-4d83-95c.iam.gserviceaccount.com
 
-            cd ~/Backstage_app
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-            # Pull latest changes
-            git fetch origin main
-            git reset --hard origin/main
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker --quiet
 
-            # Install dependencies
-            yarn install --immutable
+      - name: Enable Corepack
+        run: corepack enable
 
-            # Stop previous process (ignore errors if not found)
-            pm2 delete backstage || true
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
-            # Start Backstage in production mode
-            APP_BASE_URL="${APP_BASE_URL}" \
-            BACKEND_BASE_URL="${BACKEND_BASE_URL}" \
-            pm2 start "yarn start" --name backstage --time
+      - name: Install dependencies
+        run: yarn install --immutable
 
-            # Persist PM2 process list
-            pm2 save --force
-        env:
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
-          BACKEND_BASE_URL: ${{ secrets.BACKEND_BASE_URL }}
+      - name: Build backend
+        run: yarn build:backend
+
+      - name: Build Docker image
+        run: docker build -f packages/backend/Dockerfile -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ secrets.GKE_CLUSTER }}
+          location: ${{ secrets.GKE_ZONE }}
+
+      - name: Create namespace
+        run: kubectl create namespace backstage --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Kubernetes secrets
+        run: |
+          kubectl create secret generic backstage-secrets \
+            --namespace=backstage \
+            --from-literal=APP_BASE_URL=${{ secrets.APP_BASE_URL }} \
+            --from-literal=BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }} \
+            --from-literal=GITHUB_TOKEN=${{ secrets.BACKSTAGE_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Update image in deployment
+        run: |
+          sed -i "s|gcr.io/PROJECT_ID/backstage:latest|$IMAGE:${{ github.sha }}|g" k8s/deployment.yaml
+
+      - name: Deploy to GKE
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl rollout status deployment/backstage -n backstage
