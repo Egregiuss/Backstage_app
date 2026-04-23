@@ -48,9 +48,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Build
-        run: yarn tsc && yarn build:all
-
       - name: Build Docker image
         run: docker build -f packages/backend/Dockerfile -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
 
