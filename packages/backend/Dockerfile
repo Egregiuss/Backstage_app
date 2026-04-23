@@ -9,7 +9,6 @@ WORKDIR /app
 COPY . .
 
 RUN corepack enable && yarn install --immutable
-RUN yarn tsc
 RUN yarn build:all
 
 FROM node:22-bookworm-slim AS runner
