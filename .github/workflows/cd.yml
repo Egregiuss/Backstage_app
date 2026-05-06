@@ -8,8 +8,8 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  GKE_CLUSTER: ${{ secrets.GKE_CLUSTER }}
-  GKE_ZONE: ${{ secrets.GKE_ZONE }}
+  REGION: us-central1
+  SERVICE: backstage
   IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/backstage/backstage
 
 jobs:
@@ -62,30 +62,15 @@ jobs:
           docker push $IMAGE:${{ github.sha }}
           docker push $IMAGE:latest
 
-      - name: Get GKE credentials
-        uses: google-github-actions/get-gke-credentials@v2
-        with:
-          cluster_name: ${{ secrets.GKE_CLUSTER }}
-          location: ${{ secrets.GKE_ZONE }}
-
-      - name: Create namespace
-        run: kubectl create namespace backstage --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Create Kubernetes secrets
+      - name: Deploy to Cloud Run
         run: |
-          kubectl create secret generic backstage-secrets \
-            --namespace=backstage \
-            --from-literal=APP_BASE_URL=${{ secrets.APP_BASE_URL }} \
-            --from-literal=BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }} \
-            --from-literal=GITHUB_TOKEN=${{ secrets.BACKSTAGE_TOKEN }} \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Update image in deployment
-        run: |
-          sed -i "s|us-central1-docker.pkg.dev/PROJECT_ID/backstage/backstage:latest|$IMAGE:${{ github.sha }}|g" k8s/deployment.yaml
-
-      - name: Deploy to GKE
-        run: |
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-          kubectl rollout status deployment/backstage -n backstage
+          gcloud run deploy $SERVICE \
+            --image $IMAGE:${{ github.sha }} \
+            --region $REGION \
+            --platform managed \
+            --port 7007 \
+            --set-env-vars APP_BASE_URL=${{ secrets.APP_BASE_URL }},BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }},GITHUB_TOKEN=${{ secrets.BACKSTAGE_TOKEN }} \
+            --allow-unauthenticated \
+            --memory 1Gi \
+            --cpu 1 \
+            --min-instances 1

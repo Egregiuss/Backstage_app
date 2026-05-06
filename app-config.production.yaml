@@ -3,7 +3,9 @@ app:
 
 backend:
   baseUrl: ${BACKEND_BASE_URL}
-  listen: ':7007'
+  listen:
+    port: ${PORT:-7007}
+    host: 0.0.0.0
 
   database:
     client: better-sqlite3
